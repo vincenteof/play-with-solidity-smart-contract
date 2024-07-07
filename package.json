@@ -1,5 +1,10 @@
 {
   "name": "@vincenteof/hardhat-template",
+  "scripts": {
+    "node": "hardhat node",
+    "test": "hardhat test",
+    "deploy": "hardhat run --network localhost scripts/deploy.ts"
+  },
   "dependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.7",
     "@nomicfoundation/hardhat-ethers": "^3.0.6",
