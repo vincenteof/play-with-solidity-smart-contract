@@ -7,7 +7,7 @@ settings:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       '@nomicfoundation/hardhat-chai-matchers':
         specifier: ^2.0.7
         version: 2.0.7(@nomicfoundation/hardhat-ethers@3.0.6(ethers@6.13.1)(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))(typescript@5.5.3)))(chai@4.4.1)(ethers@6.13.1)(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))(typescript@5.5.3))
@@ -50,6 +50,9 @@ importers:
       hardhat:
         specifier: ^2.22.6
         version: 2.22.6(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))(typescript@5.5.3)
+      hardhat-abi-exporter:
+        specifier: ^2.10.1
+        version: 2.10.1(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))(typescript@5.5.3))
       hardhat-gas-reporter:
         specifier: ^2.2.0
         version: 2.2.0(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))(typescript@5.5.3))(typescript@5.5.3)
@@ -793,6 +796,11 @@ packages:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
 
+  delete-empty@3.0.0:
+    resolution: {integrity: sha512-ZUyiwo76W+DYnKsL3Kim6M/UOavPdBJgDYWOmuQhYaZvJH0AXAHbUNyEDtRbBra8wqqr686+63/0azfEk1ebUQ==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   depd@2.0.0:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
     engines: {node: '>= 0.8'}
@@ -1048,6 +1056,12 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
+  hardhat-abi-exporter@2.10.1:
+    resolution: {integrity: sha512-X8GRxUTtebMAd2k4fcPyVnCdPa6dYK4lBsrwzKP5yiSq4i+WadWPIumaLfce53TUf/o2TnLpLOduyO1ylE2NHQ==}
+    engines: {node: '>=14.14.0'}
+    peerDependencies:
+      hardhat: ^2.0.0
+
   hardhat-gas-reporter@2.2.0:
     resolution: {integrity: sha512-eAlLWnyDpQ+wJXgSCZsM0yt+rQm3ryJia1I1Hoi94LzlIfuSPcsMQM12VO6UHmAFLvXvoKxXPJ3ZYk0Kz+7CDQ==}
     peerDependencies:
@@ -1261,8 +1275,8 @@ packages:
   loupe@2.3.7:
     resolution: {integrity: sha512-zSMINGVYkdpYSOBmLi0D1Uo7JU9nVdQKrHxC8eYlV+9YKK9WePqAlL7lSlorG/U2Fw1w0hTBmaa/jrQ3UbPHtA==}
 
-  lru-cache@10.3.1:
-    resolution: {integrity: sha512-9/8QXrtbGeMB6LxwQd4x1tIMnsmUxMvIH/qWGsccz6bt9Uln3S+sgAaqfQNhbGA8ufzs2fHuP/yqapGgP9Hh2g==}
+  lru-cache@10.4.0:
+    resolution: {integrity: sha512-bfJaPTuEiTYBu+ulDaeQ0F+uLmlfFkMgXj4cbwfuMSjgObGMzb55FMMbDvbRU0fAHZ4sLGkz2mKwcMg8Dvm8Ww==}
     engines: {node: '>=18'}
 
   lru_map@0.3.3:
@@ -1448,6 +1462,10 @@ packages:
     resolution: {integrity: sha512-Xa4Nw17FS9ApQFJ9umLiJS4orGjm7ZzwUrwamcGQuHSzDyth9boKDaycYdDcZDuqYATXw4HFXgaqWTctW/v1HA==}
     engines: {node: '>=16 || 14 >=14.18'}
 
+  path-starts-with@2.0.1:
+    resolution: {integrity: sha512-wZ3AeiRBRlNwkdUxvBANh0+esnt38DLffHDujZyRHkqkaKHTglnY2EP5UX3b8rdeiSutgO4y9NEJwXezNP5vHg==}
+    engines: {node: '>=8'}
+
   path-type@4.0.0:
     resolution: {integrity: sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==}
     engines: {node: '>=8'}
@@ -1542,6 +1560,11 @@ packages:
   reusify@1.0.4:
     resolution: {integrity: sha512-U9nH88a3fc/ekCF1l0/UP1IosiuIjyTh7hBvXVMHYgVcfGvt897Xguj2UOLDeI5BG2m7/uwyaLVT6fbtCwTyzw==}
     engines: {iojs: '>=1.0.0', node: '>=0.10.0'}
+
+  rimraf@2.7.1:
+    resolution: {integrity: sha512-uWjbaKIK3T1OSVptzX7Nl6PvQ3qAGtKEtVRjRuazjfL3Bx5eI409VZSqgND+4UNnmzLVdPj9FqFJNPqBZFve4w==}
+    deprecated: Rimraf versions prior to v4 are no longer supported
+    hasBin: true
 
   ripemd160@2.0.2:
     resolution: {integrity: sha512-ii4iagi25WusVoiC4B4lq7pbXfAp3D9v5CwfkY33vffw2+pkDjY1D8GaN7spsxvCSx8dkPqOZCEZyfxcmJG2IA==}
@@ -2818,6 +2841,13 @@ snapshots:
 
   delayed-stream@1.0.0: {}
 
+  delete-empty@3.0.0:
+    dependencies:
+      ansi-colors: 4.1.3
+      minimist: 1.2.8
+      path-starts-with: 2.0.1
+      rimraf: 2.7.1
+
   depd@2.0.0: {}
 
   diff@4.0.2: {}
@@ -3156,6 +3186,12 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.18.0
 
+  hardhat-abi-exporter@2.10.1(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))(typescript@5.5.3)):
+    dependencies:
+      '@ethersproject/abi': 5.7.0
+      delete-empty: 3.0.0
+      hardhat: 2.22.6(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))(typescript@5.5.3)
+
   hardhat-gas-reporter@2.2.0(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.14.10)(typescript@5.5.3))(typescript@5.5.3))(typescript@5.5.3):
     dependencies:
       '@ethersproject/abi': 5.7.0
@@ -3414,7 +3450,7 @@ snapshots:
     dependencies:
       get-func-name: 2.0.2
 
-  lru-cache@10.3.1: {}
+  lru-cache@10.4.0: {}
 
   lru_map@0.3.3: {}
 
@@ -3590,8 +3626,10 @@ snapshots:
 
   path-scurry@1.11.1:
     dependencies:
-      lru-cache: 10.3.1
+      lru-cache: 10.4.0
       minipass: 7.1.2
+
+  path-starts-with@2.0.1: {}
 
   path-type@4.0.0: {}
 
@@ -3674,6 +3712,10 @@ snapshots:
       supports-preserve-symlinks-flag: 1.0.0
 
   reusify@1.0.4: {}
+
+  rimraf@2.7.1:
+    dependencies:
+      glob: 7.2.3
 
   ripemd160@2.0.2:
     dependencies:
