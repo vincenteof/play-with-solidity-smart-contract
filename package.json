@@ -1,5 +1,5 @@
 {
-  "name": "@vincenteof/hardhat-template",
+  "name": "@vincenteof/play-with-solidity-smart-contract",
   "scripts": {
     "compile": "hardhat compile",
     "node": "hardhat node",
