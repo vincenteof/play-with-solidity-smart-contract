@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 import "../interfaces/IRandomNumberGenerator.sol";
+import "../libraries/Ownable.sol";
 
-contract LotteryMachine {
+contract LotteryMachine is Ownable {
     enum Status {
         Pending,
         Open,
@@ -20,7 +21,7 @@ contract LotteryMachine {
         status = Status.Pending;
     }
 
-    function startLottery() external {
+    function startLottery() external onlyOwner {
         status = Status.Open;
     }
 
@@ -28,12 +29,12 @@ contract LotteryMachine {
         _userWithTicketNumber[msg.sender] = ticketNumber;
     }
 
-    function closeLottery() external {
+    function closeLottery() external onlyOwner {
         status = Status.Close;
         rng.getRandomNumber();
     }
 
-    function drawTheFinalNumber() external {
+    function drawTheFinalNumber() external onlyOwner {
         uint256 randomResult = rng.viewRandomResult();
         uint32 finalNumber_ = uint32(1000000 + (randomResult % 1000000));
         finalNumber = finalNumber_;
@@ -45,7 +46,9 @@ contract LotteryMachine {
         // todo: transfer the rewards to the user
     }
 
-    function _calculateRewards(uint32 ticketNumber) internal view returns (uint256) {
+    function _calculateRewards(
+        uint32 ticketNumber
+    ) internal view returns (uint256) {
         // todo: calculate rewards for some ticket number
         return 0;
     }
