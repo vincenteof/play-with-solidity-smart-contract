@@ -33,7 +33,7 @@ abstract contract Ownable {
     }
 
     function _checkOwner() internal view virtual {
-        if (owner() !== msg.sender) {
+        if (owner() != msg.sender) {
             revert OwnableUnauthorizedAccount(msg.sender);
         }
     }
