@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.19;
 
-interface IRandomNumberGenerator {
-    function getRandomNumber() external;
-    function viewRandomResult() external view returns (uint256);
+import "@chainlink/contracts/src/v0.8/shared/interfaces/IOwnable.sol";
+
+interface IRandomNumberGenerator is IOwnable {
+    function requestRandomNumber() external;
+
+    function viewResult() external view returns (uint256);
 }

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IRandomNumberGenerator.sol";
 import "../libraries/Ownable.sol";
+// import "hardhat/console.sol";
 
 contract LotteryMachine is Ownable {
     enum Status {
@@ -21,11 +22,10 @@ contract LotteryMachine is Ownable {
     uint32 public finalNumber;
     Status public status;
     IRandomNumberGenerator public rng;
-    IERC20 public simpleLotteryToken;
+    IERC20 public slt;
 
-    constructor(address sltAddress, address rngAddress) Ownable(msg.sender) {
-        rng = IRandomNumberGenerator(rngAddress);
-        simpleLotteryToken = IERC20(sltAddress);
+    constructor(address sltAddress) Ownable(msg.sender) {
+        slt = IERC20(sltAddress);
         status = Status.Pending;
         _bracketCalculator[0] = 1;
         _bracketCalculator[1] = 11;
@@ -35,9 +35,14 @@ contract LotteryMachine is Ownable {
         _bracketCalculator[5] = 111111;
     }
 
+    function injectRng(address rngAddress) external onlyOwner {
+        rng = IRandomNumberGenerator(rngAddress);
+        rng.acceptOwnership();
+    }
+
     function injectFunds(uint256 amount) external {
-        // todo: add transfer
         _amountCollected += amount;
+        slt.transferFrom(msg.sender, address(this), amount);
     }
 
     function startLottery(
@@ -53,20 +58,22 @@ contract LotteryMachine is Ownable {
 
     function closeLottery() external onlyOwner {
         status = Status.Close;
-        rng.getRandomNumber();
+        rng.requestRandomNumber();
     }
 
-    function drawTheFinalNumber() external onlyOwner {
-        uint256 randomResult = rng.viewRandomResult();
+    function drawFinalNumberAndMakeLotteryClaimable() external onlyOwner {
+        uint256 randomResult = rng.viewResult();
         uint32 finalNumber_ = uint32(1000000 + (randomResult % 1000000));
         finalNumber = finalNumber_;
+        status = Status.Claimable;
     }
 
     function claimTicket(uint32 bracket) external {
         uint32 ticketNumber = _userWithTicketNumber[msg.sender];
         uint256 rewards = _calculateRewards(ticketNumber, bracket);
-        if (rewards > 0) {
-            simpleLotteryToken.transfer(msg.sender, rewards);
+        if (rewards > 0 && rewards <= _amountCollected) {
+            _amountCollected -= rewards;
+            slt.transfer(msg.sender, rewards);
         }
     }
 
@@ -83,5 +90,13 @@ contract LotteryMachine is Ownable {
         } else {
             return 0;
         }
+    }
+
+    function getUserTicket(address user) external view returns (uint32) {
+        return _userWithTicketNumber[user];
+    }
+
+    function getAmountCollected() external view returns (uint256) {
+        return _amountCollected;
     }
 }
