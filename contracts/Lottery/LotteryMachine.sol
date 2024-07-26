@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IRandomNumberGenerator.sol";
 import "../libraries/Ownable.sol";
+
 // import "hardhat/console.sol";
 
 contract LotteryMachine is Ownable {
@@ -19,6 +20,7 @@ contract LotteryMachine is Ownable {
     uint256[6] private _rewardsBreakdown;
     uint256 private _amountCollected;
     mapping(uint32 => uint32) private _bracketCalculator;
+    uint256 private _priceTicketInCake;
     uint32 public finalNumber;
     Status public status;
     IRandomNumberGenerator public rng;
@@ -46,14 +48,18 @@ contract LotteryMachine is Ownable {
     }
 
     function startLottery(
-        uint256[6] calldata rewardsBreakdown
+        uint256[6] calldata rewardsBreakdown,
+        uint256 priceTicketInCake
     ) external onlyOwner {
         status = Status.Open;
         _rewardsBreakdown = rewardsBreakdown;
+        _priceTicketInCake = priceTicketInCake;
     }
 
     function buyTicket(uint32 ticketNumber) external {
         _userWithTicketNumber[msg.sender] = ticketNumber;
+        _amountCollected += _priceTicketInCake;
+        slt.transferFrom(msg.sender, address(this), _priceTicketInCake);
     }
 
     function closeLottery() external onlyOwner {

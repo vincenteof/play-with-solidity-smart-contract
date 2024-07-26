@@ -61,7 +61,7 @@ describe('LotteryMachine', () => {
 
     await slt.approve(
       await lotteryMachine.getAddress(),
-      hre.ethers.parseEther('10000')
+      hre.ethers.parseEther('150000')
     )
     await lotteryMachine.injectFunds(hre.ethers.parseEther('10000'))
 
@@ -86,6 +86,7 @@ describe('LotteryMachine', () => {
   describe('Buy Ticket', async () => {
     it('should buy the ticket successfully', async () => {
       const { lotteryMachine, owner } = await loadFixture(deployFixture)
+      await lotteryMachine.startLottery([500, 500, 500, 500, 3000, 5000], 5000n)
       await lotteryMachine.buyTicket(BigInt(1123456))
       expect(await lotteryMachine.getUserTicket(owner.address)).to.eq(
         BigInt(1123456)
@@ -96,8 +97,8 @@ describe('LotteryMachine', () => {
   describe('Close Lottery', async () => {
     it('should close the lottery successfully', async () => {
       const { lotteryMachine } = await loadFixture(deployFixture)
+      await lotteryMachine.startLottery([500, 500, 500, 500, 3000, 5000], 5000n)
       await lotteryMachine.closeLottery()
-      console.log('status: ', await lotteryMachine.status())
       expect(await lotteryMachine.status()).to.eq(2n)
     })
   })
@@ -107,6 +108,7 @@ describe('LotteryMachine', () => {
       const { lotteryMachine, rng, vrfCoordinatorMock } = await loadFixture(
         deployFixture
       )
+      await lotteryMachine.startLottery([500, 500, 500, 500, 3000, 5000], 5000n)
       await lotteryMachine.closeLottery()
       await vrfCoordinatorMock.fulfillRandomWords(
         await rng.s_requestId(),
@@ -124,9 +126,7 @@ describe('LotteryMachine', () => {
     it('should claim the tickets get some rewards', async function () {
       const { lotteryMachine, slt, rng, vrfCoordinatorMock } =
         await loadFixture(deployFixture)
-      await lotteryMachine.startLottery([
-        500, 500, 500, 500, 3000, 5000,
-      ])
+      await lotteryMachine.startLottery([500, 500, 500, 500, 3000, 5000], 5000n)
       await lotteryMachine.buyTicket(1123456n)
       await lotteryMachine.closeLottery()
       await vrfCoordinatorMock.fulfillRandomWordsWithOverride(
@@ -136,11 +136,11 @@ describe('LotteryMachine', () => {
       )
       await lotteryMachine.drawFinalNumberAndMakeLotteryClaimable()
       expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
-        hre.ethers.parseEther('10000')
+        hre.ethers.parseEther('10000') + 5000n
       )
       await lotteryMachine.claimTicket(5)
       expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
-        hre.ethers.parseEther('5000')
+        hre.ethers.parseEther('5000') + 2500n
       )
     })
   })
