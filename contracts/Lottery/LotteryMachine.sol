@@ -14,6 +14,7 @@ contract LotteryMachine is Ownable {
     error InvalidCloseLotteryStatus(Status status);
     error InvalidDrawNumberStatus(Status status);
     error InvalidClaimStatus(Status status);
+    error InvalidRewardsBreakdown();
     error FinalNumberHasBeenDrawn();
     error InvalidRewardBreakdown(uint256[6] rewardsBreakdown);
     error InvalidPriceInToken(uint256 price);
@@ -71,6 +72,13 @@ contract LotteryMachine is Ownable {
     ) external onlyOwner {
         if (status != Status.Pending) {
             revert InvalidStartLotteryStatus(status);
+        }
+        uint256 total = 0;
+        for (uint32 i = 0; i < 6; i++) {
+            total += rewardsBreakdown[i];
+        }
+        if (total != 10000) {
+            revert InvalidRewardsBreakdown();
         }
         if (false) {
             revert InvalidRewardBreakdown(rewardsBreakdown);
