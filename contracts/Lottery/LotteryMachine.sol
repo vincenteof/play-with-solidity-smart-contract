@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IRandomNumberGenerator.sol";
 import "../libraries/Ownable.sol";
 
 // import "hardhat/console.sol";
 
 contract LotteryMachine is Ownable {
+    using SafeERC20 for IERC20;
+
     error InvalidRngAddress();
     error InvalidStartLotteryStatus(Status status);
     error InvalidInjectFundsStatus(Status status);
@@ -14,6 +17,7 @@ contract LotteryMachine is Ownable {
     error InvalidCloseLotteryStatus(Status status);
     error InvalidDrawNumberStatus(Status status);
     error InvalidClaimStatus(Status status);
+    error RewardsShouldBeHigher();
     error InvalidRewardsBreakdown();
     error FinalNumberHasBeenDrawn();
     error InvalidRewardBreakdown(uint256[6] rewardsBreakdown);
@@ -39,6 +43,15 @@ contract LotteryMachine is Ownable {
     IRandomNumberGenerator public rng;
     IERC20 public slt;
 
+    event LotteryStarted(
+        uint256[6] rewardsBreakdown,
+        uint256 priceTicketInToken
+    );
+    event TicketBought(address indexed user, uint32 ticketNumber);
+    event LotteryClosed();
+    event NumberDrawn(uint32 finalNumber);
+    event RewardClaimed(address indexed user, uint32 bracket, uint256 rewards);
+
     constructor(address sltAddress) Ownable(msg.sender) {
         slt = IERC20(sltAddress);
         status = Status.Pending;
@@ -63,7 +76,7 @@ contract LotteryMachine is Ownable {
 
     function injectFunds(uint256 amount) external {
         _amountCollected += amount;
-        slt.transferFrom(msg.sender, address(this), amount);
+        slt.safeTransferFrom(msg.sender, address(this), amount);
     }
 
     function startLottery(
@@ -80,12 +93,10 @@ contract LotteryMachine is Ownable {
         if (total != 10000) {
             revert InvalidRewardsBreakdown();
         }
-        if (false) {
-            revert InvalidRewardBreakdown(rewardsBreakdown);
-        }
         status = Status.Open;
         _rewardsBreakdown = rewardsBreakdown;
         _priceTicketInToken = priceTicketInToken;
+        emit LotteryStarted(rewardsBreakdown, priceTicketInToken);
     }
 
     function buyTicket(uint32 ticketNumber) external {
@@ -94,7 +105,8 @@ contract LotteryMachine is Ownable {
         }
         _userWithTicketNumber[msg.sender] = ticketNumber;
         _amountCollected += _priceTicketInToken;
-        slt.transferFrom(msg.sender, address(this), _priceTicketInToken);
+        slt.safeTransferFrom(msg.sender, address(this), _priceTicketInToken);
+        emit TicketBought(msg.sender, ticketNumber);
     }
 
     function closeLottery() external onlyOwner {
@@ -103,6 +115,7 @@ contract LotteryMachine is Ownable {
         }
         status = Status.Close;
         rng.requestRandomNumber();
+        emit LotteryClosed();
     }
 
     function drawFinalNumberAndMakeLotteryClaimable() external onlyOwner {
@@ -119,6 +132,7 @@ contract LotteryMachine is Ownable {
         uint32 finalNumber_ = uint32(1000000 + (randomResult % 1000000));
         finalNumber = finalNumber_;
         status = Status.Claimable;
+        emit NumberDrawn(finalNumber);
     }
 
     function claimTicket(uint32 bracket) external {
@@ -127,9 +141,19 @@ contract LotteryMachine is Ownable {
         }
         uint32 ticketNumber = _userWithTicketNumber[msg.sender];
         uint256 rewards = _calculateRewards(ticketNumber, bracket);
+        if (bracket != 5) {
+            uint256 higherRewards = _calculateRewards(
+                ticketNumber,
+                bracket + 1
+            );
+            if (higherRewards != 0) {
+                revert RewardsShouldBeHigher();
+            }
+        }
         if (rewards > 0 && rewards <= _amountCollected) {
             _amountCollected -= rewards;
-            slt.transfer(msg.sender, rewards);
+            slt.safeTransfer(msg.sender, rewards);
+            emit RewardClaimed(msg.sender, bracket, rewards);
         }
     }
 
