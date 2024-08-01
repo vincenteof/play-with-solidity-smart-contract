@@ -61,18 +61,28 @@ describe('LotteryMachine', () => {
 
     await slt.approve(
       await lotteryMachine.getAddress(),
-      hre.ethers.parseEther('150000')
+      hre.ethers.parseEther('15000')
     )
     await lotteryMachine.injectFunds(hre.ethers.parseEther('10000'))
-
+    await slt
+      .connect(otherAccount)
+      .approve(await lotteryMachine.getAddress(), hre.ethers.parseEther('1000'))
+    await slt.transfer(otherAccount.address, hre.ethers.parseEther('10000'))
     return { lotteryMachine, rng, vrfCoordinatorMock, slt, owner, otherAccount }
   }
 
   describe('Deployment', async () => {
     it('Should set correct initial state', async function () {
-      const { lotteryMachine, slt, owner } = await loadFixture(deployFixture)
+      const { lotteryMachine, slt, owner, otherAccount } = await loadFixture(
+        deployFixture
+      )
       expect(await slt.balanceOf(owner.address)).to.eq(
-        hre.ethers.parseEther('200000') - hre.ethers.parseEther('10000')
+        hre.ethers.parseEther('200000') -
+          hre.ethers.parseEther('10000') -
+          hre.ethers.parseEther('10000')
+      )
+      expect(await slt.balanceOf(otherAccount.address)).to.eq(
+        hre.ethers.parseEther('10000')
       )
       expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
         hre.ethers.parseEther('10000')
@@ -143,5 +153,45 @@ describe('LotteryMachine', () => {
         hre.ethers.parseEther('5000') + 2500n
       )
     })
+  })
+  it('should divide the reward to different users', async function () {
+    const {
+      lotteryMachine,
+      slt,
+      rng,
+      vrfCoordinatorMock,
+      owner,
+      otherAccount,
+    } = await loadFixture(deployFixture)
+    await lotteryMachine.startLottery([500, 500, 500, 500, 2000, 6000], 5000n)
+    await lotteryMachine.buyTicket(1023456n)
+    await lotteryMachine.connect(otherAccount).buyTicket(1323456n)
+    await lotteryMachine.closeLottery()
+    await vrfCoordinatorMock.fulfillRandomWordsWithOverride(
+      await rng.s_requestId(),
+      await rng.getAddress(),
+      [1123456n, 1654321n]
+    )
+    await lotteryMachine.drawFinalNumberAndMakeLotteryClaimable()
+    expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
+      hre.ethers.parseEther('10000') + 5000n + 5000n
+    )
+    await lotteryMachine.claimTicket(4)
+    await lotteryMachine.connect(otherAccount).claimTicket(4)
+    expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
+      hre.ethers.parseEther('8000') + 4000n + 4000n
+    )
+    expect(await slt.balanceOf(owner.address)).to.eq(
+      hre.ethers.parseEther('180000') -
+        5000n +
+        hre.ethers.parseEther('1000') +
+        1000n
+    )
+    expect(await slt.balanceOf(otherAccount.address)).to.eq(
+      hre.ethers.parseEther('10000') -
+        5000n +
+        hre.ethers.parseEther('1000') +
+        1000n
+    )
   })
 })

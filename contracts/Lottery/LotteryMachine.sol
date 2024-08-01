@@ -14,9 +14,14 @@ contract LotteryMachine is Ownable {
     error InvalidStartLotteryStatus(Status status);
     error InvalidInjectFundsStatus(Status status);
     error InvalidBuyTicketStatus(Status status);
+    error TicketOutOfRange();
+    error UserHasAlreadyBought();
     error InvalidCloseLotteryStatus(Status status);
     error InvalidDrawNumberStatus(Status status);
     error InvalidClaimStatus(Status status);
+    error NoRewardsToClaim();
+    error InvalidRewardsToClaim();
+    error BracketOutOfRange();
     error RewardsShouldBeHigher();
     error InvalidRewardsBreakdown();
     error FinalNumberHasBeenDrawn();
@@ -36,6 +41,8 @@ contract LotteryMachine is Ownable {
     // adds up to 10000
     uint256[6] private _rewardsBreakdown;
     uint256 private _amountCollected;
+    uint256[6] private _tokenPerBracket;
+    mapping(uint32 => uint256) private _numberTickets;
     mapping(uint32 => uint32) private _bracketCalculator;
     uint256 private _priceTicketInToken;
     uint32 public finalNumber;
@@ -96,6 +103,14 @@ contract LotteryMachine is Ownable {
         status = Status.Open;
         _rewardsBreakdown = rewardsBreakdown;
         _priceTicketInToken = priceTicketInToken;
+        _tokenPerBracket = [
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0)
+        ];
         emit LotteryStarted(rewardsBreakdown, priceTicketInToken);
     }
 
@@ -103,9 +118,21 @@ contract LotteryMachine is Ownable {
         if (status != Status.Open) {
             revert InvalidBuyTicketStatus(status);
         }
+        if (ticketNumber < 1000000 || ticketNumber > 1999999) {
+            revert TicketOutOfRange();
+        }
+        if (_userWithTicketNumber[msg.sender] != 0) {
+            revert UserHasAlreadyBought();
+        }
         _userWithTicketNumber[msg.sender] = ticketNumber;
         _amountCollected += _priceTicketInToken;
         slt.safeTransferFrom(msg.sender, address(this), _priceTicketInToken);
+        _numberTickets[1 + (ticketNumber % 10)]++;
+        _numberTickets[11 + (ticketNumber % 100)]++;
+        _numberTickets[111 + (ticketNumber % 1000)]++;
+        _numberTickets[1111 + (ticketNumber % 10000)]++;
+        _numberTickets[11111 + (ticketNumber % 100000)]++;
+        _numberTickets[111111 + (ticketNumber % 1000000)]++;
         emit TicketBought(msg.sender, ticketNumber);
     }
 
@@ -130,6 +157,27 @@ contract LotteryMachine is Ownable {
         }
         uint256 randomResult = rng.viewResult();
         uint32 finalNumber_ = uint32(1000000 + (randomResult % 1000000));
+
+        uint256 numberAddressesInPreviousBracket;
+        for (uint32 i = 0; i < 6; i++) {
+            uint32 j = 5 - i;
+            uint32 transformedWinningNumber = _bracketCalculator[j] +
+                (finalNumber_ % (uint32(10) ** (j + 1)));
+            uint256 winnersInCurrentBracket = _numberTickets[
+                transformedWinningNumber
+            ] - numberAddressesInPreviousBracket;
+            if (winnersInCurrentBracket != 0) {
+                _tokenPerBracket[j] =
+                    (_rewardsBreakdown[j] * _amountCollected) /
+                    winnersInCurrentBracket /
+                    10000;
+                numberAddressesInPreviousBracket = _numberTickets[
+                    transformedWinningNumber
+                ];
+            } else {
+                _tokenPerBracket[j] = 0;
+            }
+        }
         finalNumber = finalNumber_;
         status = Status.Claimable;
         emit NumberDrawn(finalNumber);
@@ -139,8 +187,17 @@ contract LotteryMachine is Ownable {
         if (status != Status.Claimable) {
             revert InvalidClaimStatus(status);
         }
+        if (bracket > 5) {
+            revert BracketOutOfRange();
+        }
         uint32 ticketNumber = _userWithTicketNumber[msg.sender];
         uint256 rewards = _calculateRewards(ticketNumber, bracket);
+        if (rewards == 0) {
+            revert NoRewardsToClaim();
+        }
+        if (rewards > _amountCollected) {
+            revert InvalidRewardsToClaim();
+        }
         if (bracket != 5) {
             uint256 higherRewards = _calculateRewards(
                 ticketNumber,
@@ -150,11 +207,9 @@ contract LotteryMachine is Ownable {
                 revert RewardsShouldBeHigher();
             }
         }
-        if (rewards > 0 && rewards <= _amountCollected) {
-            _amountCollected -= rewards;
-            slt.safeTransfer(msg.sender, rewards);
-            emit RewardClaimed(msg.sender, bracket, rewards);
-        }
+        _amountCollected -= rewards;
+        slt.safeTransfer(msg.sender, rewards);
+        emit RewardClaimed(msg.sender, bracket, rewards);
     }
 
     function _calculateRewards(
@@ -166,7 +221,7 @@ contract LotteryMachine is Ownable {
         uint32 transformedFinalNumber = _bracketCalculator[bracket] +
             (finalNumber % (uint32(10) ** (bracket + 1)));
         if (transformedFinalNumber == transformedTicketNumber) {
-            return (_amountCollected * _rewardsBreakdown[bracket]) / 10000;
+            return _tokenPerBracket[bracket];
         } else {
             return 0;
         }
