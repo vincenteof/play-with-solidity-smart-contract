@@ -4,10 +4,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IRandomNumberGenerator.sol";
 import "../libraries/Ownable.sol";
+import "../libraries/ReentrancyGuard.sol";
 
 // import "hardhat/console.sol";
 
-contract LotteryMachine is Ownable {
+contract LotteryMachine is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     error InvalidRngAddress();
@@ -81,7 +82,7 @@ contract LotteryMachine is Ownable {
         rng.acceptOwnership();
     }
 
-    function injectFunds(uint256 amount) external {
+    function injectFunds(uint256 amount) external nonReentrant {
         _amountCollected += amount;
         slt.safeTransferFrom(msg.sender, address(this), amount);
     }
@@ -114,7 +115,7 @@ contract LotteryMachine is Ownable {
         emit LotteryStarted(rewardsBreakdown, priceTicketInToken);
     }
 
-    function buyTicket(uint32 ticketNumber) external {
+    function buyTicket(uint32 ticketNumber) external nonReentrant {
         if (status != Status.Open) {
             revert InvalidBuyTicketStatus(status);
         }
@@ -183,7 +184,7 @@ contract LotteryMachine is Ownable {
         emit NumberDrawn(finalNumber);
     }
 
-    function claimTicket(uint32 bracket) external {
+    function claimTicket(uint32 bracket) external nonReentrant {
         if (status != Status.Claimable) {
             revert InvalidClaimStatus(status);
         }
