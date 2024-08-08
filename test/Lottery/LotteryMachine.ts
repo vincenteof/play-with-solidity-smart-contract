@@ -181,10 +181,14 @@ describe('LotteryMachine', () => {
       const { lotteryMachine, owner, startLotteryAndInjectFunds } =
         await loadFixture(deployFixture)
       const { lotteryId } = await startLotteryAndInjectFunds()
-      await lotteryMachine.buyTicket(lotteryId, BigInt(1123456))
-      expect(
-        await lotteryMachine.getUserTicket(lotteryId, owner.address)
-      ).to.eq(BigInt(1123456))
+      await lotteryMachine.buyTickets(lotteryId, [1123456n])
+      const ticketIds = await lotteryMachine.getUserTicketIds(
+        lotteryId,
+        owner.address
+      )
+      const ticketId = ticketIds[0]
+      const ticket = await lotteryMachine.getTicket(ticketId)
+      expect(ticket.number).to.eq(1123456n)
     })
   })
 
@@ -230,10 +234,15 @@ describe('LotteryMachine', () => {
         slt,
         rng,
         vrfCoordinatorMock,
+        owner,
         startLotteryAndInjectFunds,
       } = await loadFixture(deployFixture)
       const { lotteryId } = await startLotteryAndInjectFunds()
-      await lotteryMachine.buyTicket(lotteryId, 1123456n)
+      await lotteryMachine.buyTickets(lotteryId, [1123456n])
+      const ticketIds = await lotteryMachine.getUserTicketIds(
+        lotteryId,
+        owner.address
+      )
       await lotteryMachine.closeLottery(lotteryId)
       await vrfCoordinatorMock.fulfillRandomWordsWithOverride(
         await rng.s_requestId(),
@@ -244,7 +253,8 @@ describe('LotteryMachine', () => {
       expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
         hre.ethers.parseEther('10000') + 5000n
       )
-      await lotteryMachine.claimTicket(lotteryId, 5)
+      // solidity 里的数组结构在 ts 拿到貌似不是 Array 
+      await lotteryMachine.claimTicket(lotteryId, [...ticketIds], [5n])
       expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
         hre.ethers.parseEther('5000') + 2500n
       )
@@ -264,8 +274,17 @@ describe('LotteryMachine', () => {
         [500, 500, 500, 500, 2000, 6000],
         5000n
       )
-      await lotteryMachine.buyTicket(lotteryId, 1023456n)
-      await lotteryMachine.connect(otherAccount).buyTicket(lotteryId, 1323456n)
+      await lotteryMachine.buyTickets(lotteryId, [1023456n])
+      const ownerTicketIds = await lotteryMachine.getUserTicketIds(
+        lotteryId,
+        owner.address
+      )
+      await lotteryMachine
+        .connect(otherAccount)
+        .buyTickets(lotteryId, [1323456n])
+      const otherTicketIds = await lotteryMachine
+        .connect(otherAccount)
+        .getUserTicketIds(lotteryId, otherAccount.address)
       await lotteryMachine.closeLottery(lotteryId)
       await vrfCoordinatorMock.fulfillRandomWordsWithOverride(
         await rng.s_requestId(),
@@ -276,8 +295,10 @@ describe('LotteryMachine', () => {
       expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
         hre.ethers.parseEther('10000') + 5000n + 5000n
       )
-      await lotteryMachine.claimTicket(lotteryId, 4)
-      await lotteryMachine.connect(otherAccount).claimTicket(lotteryId, 4)
+      await lotteryMachine.claimTicket(lotteryId, [...ownerTicketIds], [4])
+      await lotteryMachine
+        .connect(otherAccount)
+        .claimTicket(lotteryId, [...otherTicketIds], [4])
       expect(await slt.balanceOf(await lotteryMachine.getAddress())).to.eq(
         hre.ethers.parseEther('8000') + 4000n + 4000n
       )
@@ -296,5 +317,5 @@ describe('LotteryMachine', () => {
     })
   })
 
-  // todo: test another
+  // todo: add more test for invalid claim cases
 })

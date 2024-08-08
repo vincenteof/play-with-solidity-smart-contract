@@ -6,29 +6,28 @@ import "../interfaces/IRandomNumberGenerator.sol";
 import "../libraries/Ownable.sol";
 import "../libraries/ReentrancyGuard.sol";
 
-// import "hardhat/console.sol";
-
 contract LotteryMachine is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     error InjectFundsWhenNotOpen();
     error NotTimeToStartLottery();
-    error InvalidInjectFundsStatus();
     error BuyicketWhenNotOpen();
     error TicketOutOfRange();
     error UserHasAlreadyBought();
+    error NoTicketNumberToBuy();
     error CloseLotteryWhenNotOpen();
     error DrawNumberWhenNotClose();
     error ClaimWhenNotClaimable();
     error NoRewardsToClaim();
+    error NotTheOwnerToClaim();
     error InvalidRewardsToClaim();
+    error InvalidTicketIdToCliam();
+    error UnmatchedTicketIdsAndBracketsToClaim();
+    error NoTicketIdsToClaim();
     error BracketOutOfRange();
     error RewardsShouldBeHigher();
     error InvalidRewardsBreakdown();
     error FinalNumberHasBeenDrawn();
-    error InvalidRewardBreakdown();
-    error InvalidPriceInToken();
-    error InvalidInjectRngStatus();
 
     enum Status {
         Pending,
@@ -48,12 +47,27 @@ contract LotteryMachine is Ownable, ReentrancyGuard {
         uint32 finalNumber;
     }
 
+    enum TicketStatus {
+        NotCreated,
+        Bought,
+        Claimed
+    }
+
+    struct Ticket {
+        TicketStatus status;
+        uint32 number;
+        address owner;
+    }
+
     uint256 public currentLotteryId;
+    uint256 public currentTicketId;
+
     mapping(uint256 => Lottery) private _lotteries;
+    mapping(uint256 => Ticket) private _tickets;
+
     mapping(uint256 => mapping(uint32 => uint256))
         private _numberTicketsPerLotteryId;
-    // todo: multiple tickets
-    mapping(address => mapping(uint256 => uint32))
+    mapping(address => mapping(uint256 => uint256[]))
         private _userTicketIdsPerLotteryId;
 
     mapping(uint32 => uint32) private _bracketCalculator;
@@ -68,14 +82,14 @@ contract LotteryMachine is Ownable, ReentrancyGuard {
     event TicketBought(
         uint256 indexed lotteryId,
         address indexed user,
-        uint32 ticketNumber
+        uint256 ticketNumbersLength
     );
     event LotteryClosed(uint256 indexed lotteryId);
     event NumberDrawn(uint256 indexed lotteryId, uint32 finalNumber);
     event RewardClaimed(
         uint256 indexed lotteryId,
         address indexed user,
-        uint32 bracket,
+        uint256 ticketNumbersLength,
         uint256 rewards
     );
 
@@ -141,39 +155,55 @@ contract LotteryMachine is Ownable, ReentrancyGuard {
         );
     }
 
-    function buyTicket(
+    function buyTickets(
         uint256 lotteryId,
-        uint32 ticketNumber
+        uint32[] calldata ticketNumbers
     ) external nonReentrant {
         if (_lotteries[lotteryId].status != Status.Open) {
             revert BuyicketWhenNotOpen();
         }
-        if (ticketNumber < 1000000 || ticketNumber > 1999999) {
-            revert TicketOutOfRange();
+        if (ticketNumbers.length == 0) {
+            revert NoTicketNumberToBuy();
         }
-        // support multiple tickets
-        if (_userTicketIdsPerLotteryId[msg.sender][lotteryId] != 0) {
-            revert UserHasAlreadyBought();
+
+        uint256 amountTokenToTransfer = _lotteries[lotteryId]
+            .priceTicketInToken * ticketNumbers.length;
+        slt.safeTransferFrom(msg.sender, address(this), amountTokenToTransfer);
+        _lotteries[lotteryId].amountCollected += amountTokenToTransfer;
+
+        for (uint256 i = 0; i < ticketNumbers.length; i++) {
+            uint32 ticketNumber = ticketNumbers[i];
+            if (ticketNumber < 1000000 || ticketNumber > 1999999) {
+                revert TicketOutOfRange();
+            }
+
+            _numberTicketsPerLotteryId[lotteryId][1 + (ticketNumber % 10)]++;
+            _numberTicketsPerLotteryId[lotteryId][11 + (ticketNumber % 100)]++;
+            _numberTicketsPerLotteryId[lotteryId][
+                111 + (ticketNumber % 1000)
+            ]++;
+            _numberTicketsPerLotteryId[lotteryId][
+                1111 + (ticketNumber % 10000)
+            ]++;
+            _numberTicketsPerLotteryId[lotteryId][
+                11111 + (ticketNumber % 100000)
+            ]++;
+            _numberTicketsPerLotteryId[lotteryId][
+                111111 + (ticketNumber % 1000000)
+            ]++;
+
+            _userTicketIdsPerLotteryId[msg.sender][lotteryId].push(
+                currentTicketId
+            );
+            _tickets[currentTicketId] = Ticket({
+                number: ticketNumber,
+                owner: msg.sender,
+                status: TicketStatus.Bought
+            });
+            currentTicketId++;
         }
-        _userTicketIdsPerLotteryId[msg.sender][lotteryId] = ticketNumber;
-        _lotteries[lotteryId].amountCollected += _lotteries[lotteryId]
-            .priceTicketInToken;
-        slt.safeTransferFrom(
-            msg.sender,
-            address(this),
-            _lotteries[lotteryId].priceTicketInToken
-        );
-        _numberTicketsPerLotteryId[lotteryId][1 + (ticketNumber % 10)]++;
-        _numberTicketsPerLotteryId[lotteryId][11 + (ticketNumber % 100)]++;
-        _numberTicketsPerLotteryId[lotteryId][111 + (ticketNumber % 1000)]++;
-        _numberTicketsPerLotteryId[lotteryId][1111 + (ticketNumber % 10000)]++;
-        _numberTicketsPerLotteryId[lotteryId][
-            11111 + (ticketNumber % 100000)
-        ]++;
-        _numberTicketsPerLotteryId[lotteryId][
-            111111 + (ticketNumber % 1000000)
-        ]++;
-        emit TicketBought(lotteryId, msg.sender, ticketNumber);
+
+        emit TicketBought(lotteryId, msg.sender, ticketNumbers.length);
     }
 
     function closeLottery(uint256 lotteryId) external onlyOwner {
@@ -225,42 +255,70 @@ contract LotteryMachine is Ownable, ReentrancyGuard {
 
     function claimTicket(
         uint256 lotteryId,
-        uint32 bracket
+        uint256[] calldata ticketIds,
+        uint32[] calldata brackets
     ) external nonReentrant {
         if (_lotteries[lotteryId].status != Status.Claimable) {
             revert ClaimWhenNotClaimable();
         }
-        if (bracket > 5) {
-            revert BracketOutOfRange();
+        if (ticketIds.length != brackets.length) {
+            revert UnmatchedTicketIdsAndBracketsToClaim();
         }
-        uint32 ticketNumber = _userTicketIdsPerLotteryId[msg.sender][lotteryId];
-        uint256 rewards = _calculateRewards(lotteryId, ticketNumber, bracket);
-        if (rewards == 0) {
-            revert NoRewardsToClaim();
+        if (ticketIds.length == 0) {
+            revert NoTicketIdsToClaim();
         }
-        if (rewards > _lotteries[lotteryId].amountCollected) {
-            revert InvalidRewardsToClaim();
-        }
-        if (bracket != 5) {
-            uint256 higherRewards = _calculateRewards(
-                lotteryId,
-                ticketNumber,
-                bracket + 1
-            );
-            if (higherRewards != 0) {
-                revert RewardsShouldBeHigher();
+
+        uint256 rewardsInTokenToTransfer = 0;
+        for (uint256 i = 0; i < ticketIds.length; i++) {
+            uint32 bracket = brackets[i];
+            if (bracket > 5) {
+                revert BracketOutOfRange();
             }
+            uint256 ticketId = ticketIds[i];
+            if (_tickets[ticketId].status != TicketStatus.Bought) {
+                revert InvalidTicketIdToCliam();
+            }
+            if (msg.sender != _tickets[ticketId].owner) {
+                revert NotTheOwnerToClaim();
+            }
+            _tickets[ticketId].owner = address(0);
+            _tickets[ticketId].status = TicketStatus.Claimed;
+            uint256 reward = _calculateRewards(lotteryId, ticketId, bracket);
+
+            if (reward == 0) {
+                revert NoRewardsToClaim();
+            }
+            if (reward > _lotteries[lotteryId].amountCollected) {
+                revert InvalidRewardsToClaim();
+            }
+            if (bracket != 5) {
+                uint256 higherRewards = _calculateRewards(
+                    lotteryId,
+                    ticketId,
+                    bracket + 1
+                );
+                if (higherRewards != 0) {
+                    revert RewardsShouldBeHigher();
+                }
+            }
+            rewardsInTokenToTransfer += reward;
         }
-        _lotteries[lotteryId].amountCollected -= rewards;
-        slt.safeTransfer(msg.sender, rewards);
-        emit RewardClaimed(lotteryId, msg.sender, bracket, rewards);
+
+        slt.safeTransfer(msg.sender, rewardsInTokenToTransfer);
+        emit RewardClaimed(
+            lotteryId,
+            msg.sender,
+            ticketIds.length,
+            rewardsInTokenToTransfer
+        );
     }
 
     function _calculateRewards(
         uint256 lotteryId,
-        uint32 ticketNumber,
+        uint256 ticketId,
         uint32 bracket
     ) internal view returns (uint256) {
+        uint32 ticketNumber = _tickets[ticketId].number;
         uint32 transformedTicketNumber = _bracketCalculator[bracket] +
             (ticketNumber % (uint32(10) ** (bracket + 1)));
         uint32 finalNumber = _lotteries[lotteryId].finalNumber;
@@ -273,8 +331,15 @@ contract LotteryMachine is Ownable, ReentrancyGuard {
         }
     }
 
-    function getUserTicket(uint256 lotteryId, address user) external view returns (uint32) {
+    function getUserTicketIds(
+        uint256 lotteryId,
+        address user
+    ) external view returns (uint256[] memory) {
         return _userTicketIdsPerLotteryId[user][lotteryId];
+    }
+
+    function getTicket(uint256 ticketId) external view returns (Ticket memory) {
+        return _tickets[ticketId];
     }
 
     function getLottery(
