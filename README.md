@@ -1,13 +1,5 @@
-# Sample Hardhat Project
+# Play With Solidity Smart Contract
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+I play with solidity in this repo.
 
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.ts
-```
+THIS REPO IS ONLY USED FOR LEARNING AND DEMONSTRATION, DO NOT USE IT IN PRODUCTION.
