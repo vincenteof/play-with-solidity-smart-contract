@@ -24,6 +24,7 @@
     "hardhat": "^2.22.6",
     "hardhat-abi-exporter": "^2.10.1",
     "hardhat-gas-reporter": "^2.2.0",
+    "merkletreejs": "^0.4.0",
     "solidity-coverage": "^0.8.12",
     "ts-node": "^10.9.2",
     "typechain": "^8.3.2",
